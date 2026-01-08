@@ -12,6 +12,6 @@ const OrdersSchema = new Schema({
         enum: ["NEW", "PLACED", "EXECUTED", "CANCELLED"],
     },
 });
-    
+
 const Orders = mongoose.model("Orders", OrdersSchema);
 module.exports = Orders;

@@ -2,7 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 const { body, validationResult } = require("express-validator");
-const Instrument= require("../models/Instrument");
+const Instrument = require("../models/Instrument");
 const Orders = require("../models/Orders");
 const Portfolio = require("../models/Portfolio");
 
@@ -12,7 +12,7 @@ router.post(
     [
         body("symbol").notEmpty(),
         body("exchange").notEmpty(),
-        body("intrumentType").notEmpty(),
+        body("instrumentType").notEmpty(),
         body("lastTradedPrice").isNumeric(),
     ],
     async (req, res) => {
@@ -21,13 +21,21 @@ router.post(
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
             }
+            const existing = await Instrument.findOne({
+                symbol: req.body.symbol,
+            });
+            if (existing) {
+                return res
+                    .status(400)
+                    .json({ message: "Symbol already exists" });
+            }
             let instrument = await Instrument.create({
                 symbol: req.body.symbol,
                 exchange: req.body.exchange,
                 instrumentType: req.body.instrumentType,
                 lastTradedPrice: req.body.lastTradedPrice,
             });
-            res.status(201).json(instrument);
+            res.status(200).json(instrument);
         } catch (error) {
             res.status(500).json({ message: "Server Error" });
         }
@@ -58,28 +66,31 @@ router.post(
                 style: req.body.style,
                 quantity: req.body.quantity,
                 price: req.body.price,
+                status: "NEW",
             });
             res.status(201).json(order);
         } catch (error) {
-            res.status(500).json({ message: "Server Error" });
+            res.status(500).json({ error });
         }
     }
 );
 
 //Fetch order ID
-router.get(
-    "/orders/:orderId",
-    async (req, res) => {
-        try{
-            const order=await Orders.findById(req.params.orderId);
-            if(order!=null)
-                res.status(200).json(order);
-            else
-                res.status(404).json({message:"Order not found"})
+router.get("/orders/:orderId", async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({ message: "Invalid Order ID" });
         }
-        catch(error){
-            res.status(500).json({ message: "Server Error" });
+        const order = await Orders.findById(req.params.orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
         }
+        order.status = "PLACED";
+        res.status(200).json({ order });
+    } catch (error) {
+        console.error("GET ORDER ERROR:", error);
+        res.status(500).json({ error });
     }
-)
+});
 module.exports = router;
