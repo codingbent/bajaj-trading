@@ -35,7 +35,7 @@ router.post(
                 instrumentType: req.body.instrumentType,
                 lastTradedPrice: req.body.lastTradedPrice,
             });
-            res.status(200).json(instrument);
+            res.status(201).json(instrument);
         } catch (error) {
             res.status(500).json({ message: "Server Error" });
         }
@@ -87,7 +87,7 @@ router.get("/orders/:orderId", async (req, res) => {
             return res.status(404).json({ message: "Order not found" });
         }
         order.status = "PLACED";
-        res.status(200).json({ order });
+        res.status(201).json({ order });
     } catch (error) {
         console.error("GET ORDER ERROR:", error);
         res.status(500).json({ error });
