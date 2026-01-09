@@ -152,23 +152,40 @@ router.post(
 );
 
 //fetch user trades
-router.get("/trades", async (req, res) => {
+router.put("/orders/:orderId/execute", async (req, res) => {
     try {
-        const { userId } = req.query;
-        if (!userId) {
-            return res.status(400).json({ message: "userId is required" });
+        const { orderId } = req.params;
+        const userId = req.body.userId;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({ message: "Invalid Order ID" });
         }
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ message: "Invalid userId" });
+        const order = await Orders.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
         }
-        const filter = { user_id: userId };
-        const trades = await Trades.find(filter)
-            .populate("instrument_id", "symbol exchange")
-            .populate("order_id");
+        if (order.status === "EXECUTED") {
+            return res.status(400).json({ message: "Order already executed" });
+        }
 
-        res.status(200).json(trades);
+        const trade = await Trades.create({
+            user_id: userId,
+            order_id: order._id,
+            instrument_id: order.instrument_id,
+            quantity: order.quantity,
+            price: order.style === "MARKET" ? order.price : order.price,
+        });
+
+        order.status = "EXECUTED";
+        await order.save();
+
+        res.status(200).json({
+            message: "Order executed successfully",
+            order,
+            trade,
+        });
     } catch (error) {
-        return res.status(500).json(error);
+        console.error("EXECUTE ORDER ERROR:", error);
+        res.status(500).json({ message: "Server Error" });
     }
 });
 
