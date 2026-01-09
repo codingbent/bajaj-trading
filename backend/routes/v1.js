@@ -6,7 +6,7 @@ const { body, validationResult } = require("express-validator");
 const Instrument = require("../models/Instrument");
 const Orders = require("../models/Orders");
 const User = require("../models/User");
-const Portfolio = require("../models/Portfolio");
+const Trades = require("../models/Trades");
 
 //Instrument
 router.post(
@@ -16,6 +16,7 @@ router.post(
         body("exchange").notEmpty(),
         body("instrumentType").notEmpty(),
         body("lastTradedPrice").isNumeric(),
+        body("quantity").isNumeric(),
     ],
     async (req, res) => {
         try {
@@ -36,6 +37,7 @@ router.post(
                 exchange: req.body.exchange,
                 instrumentType: req.body.instrumentType,
                 lastTradedPrice: req.body.lastTradedPrice,
+                quantity: req.body.quantity,
             });
             res.status(201).json(instrument);
         } catch (error) {
@@ -48,7 +50,7 @@ router.post(
 router.get("/fetchallinstruments", async (req, res) => {
     try {
         const instruments = await Instrument.find();
-        res.status(201).json(instruments);
+        res.status(200).json(instruments);
     } catch (error) {
         res.status(500).json(error);
     }
@@ -69,7 +71,7 @@ router.post(
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
             }
-            if (req.body.style === "LIMIT" && req.body.price < 0) {
+            if (req.body.style === "LIMIT" && (req.body.price == null || req.body.price <= 0)) {
                 return res.status(400).json({
                     message: "Price is required for LIMIT orders",
                 });
@@ -105,7 +107,8 @@ router.post(
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { username, name, number, email, password, cpassword } = req.body;
+            const { username, name, number, email, password, cpassword } =
+                req.body;
             if (password !== cpassword) {
                 return res.status(400).json({
                     message: "Passwords do not match",
@@ -147,6 +150,27 @@ router.post(
         }
     }
 );
+
+//fetch user trades
+router.get("/trades", async (req, res) => {
+    try {
+        const { userId } = req.query;
+        if (!userId) {
+            return res.status(400).json({ message: "userId is required" });
+        }
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: "Invalid userId" });
+        }
+        const filter = { user_id: userId };
+        const trades = await Trades.find(filter)
+            .populate("instrument_id", "symbol exchange")
+            .populate("order_id");
+
+        res.status(200).json(trades);
+    } catch (error) {
+        return res.status(500).json(error);
+    }
+});
 
 //Fetch order ID
 router.get("/orders/:orderId", async (req, res) => {

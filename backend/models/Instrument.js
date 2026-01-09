@@ -6,6 +6,7 @@ const InstrumentSchema = new Schema({
     exchange: { type: String, required: true },
     instrumentType: { type: String, required: true },
     lastTradedPrice: { type: Number, required: true },
+    quantity:{type:Number,required:true},
 });
 const Instrument = mongoose.model("Instrument", InstrumentSchema);
 module.exports = Instrument;
