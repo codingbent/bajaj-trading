@@ -11,6 +11,16 @@ const OrdersSchema = new Schema({
         required: true,
         enum: ["NEW", "PLACED", "EXECUTED", "CANCELLED"],
     },
+    user_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    instrument_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Instrument",
+        required: true,
+    },
 });
 
 const Orders = mongoose.model("Orders", OrdersSchema);

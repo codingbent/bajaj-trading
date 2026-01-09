@@ -60,10 +60,12 @@ router.get("/fetchallinstruments", async (req, res) => {
 router.post(
     "/orders",
     [
+        body("userId").isMongoId(),
+        body("instrumentId").isMongoId(),
         body("type").notEmpty().isIn(["BUY", "SELL"]),
         body("style").notEmpty().isIn(["MARKET", "LIMIT"]),
         body("quantity").isInt({ min: 1 }),
-        body("price"),
+        body("price").optional().isFloat({ gt: 0 }),
     ],
     async (req, res) => {
         try {
@@ -71,16 +73,21 @@ router.post(
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
             }
-            if (req.body.style === "LIMIT" && (req.body.price == null || req.body.price <= 0)) {
+            if (
+                req.body.style === "LIMIT" &&
+                (req.body.price == null || req.body.price <= 0)
+            ) {
                 return res.status(400).json({
                     message: "Price is required for LIMIT orders",
                 });
             }
             let order = await Orders.create({
+                user_id: req.body.userId,
+                instrument_id: req.body.instrumentId,
                 type: req.body.type,
                 style: req.body.style,
                 quantity: req.body.quantity,
-                price: req.body.price,
+                price: req.body.style === "MARKET" ? null : req.body.price,
                 status: "NEW",
             });
             res.status(201).json(order);
@@ -166,13 +173,19 @@ router.put("/orders/:orderId/execute", async (req, res) => {
         if (order.status === "EXECUTED") {
             return res.status(400).json({ message: "Order already executed" });
         }
+        const instrument = await Instrument.findById(order.instrument_id);
+        if (!instrument) {
+            return res.status(404).json({ message: "Instrument not found" });
+        }
+        const executionPrice =
+            order.style === "MARKET" ? instrument.lastTradedPrice : order.price;
 
         const trade = await Trades.create({
             user_id: userId,
             order_id: order._id,
             instrument_id: order.instrument_id,
             quantity: order.quantity,
-            price: order.style === "MARKET" ? order.price : order.price,
+            price: executionPrice,
         });
 
         order.status = "EXECUTED";

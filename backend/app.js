@@ -7,6 +7,7 @@ require("./models/Instrument");
 require("./models/Orders");
 require("./models/Portfolio");
 require("./models/User");
+require("./models/Trades")
 
 const app=express();
 app.use(express.json());

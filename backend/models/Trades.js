@@ -12,7 +12,7 @@ const TradesSchema=new Schema({
         ref:"Orders",
         required:true
     },
-    intrument_id:{
+    instrument_id:{
         type:mongoose.Schema.Types.ObjectId,
         required:true,
         ref:"Instrument"
