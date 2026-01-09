@@ -41,6 +41,17 @@ router.post(
         }
     }
 );
+
+//Instrument get
+router.get("/fetchallinstruments", async (req, res) => {
+    try {
+        const instruments = await Instrument.find();
+        res.status(200).json(instruments);
+    } catch (error) {
+        res.status(500).json(error);
+    }
+});
+
 //Placing new order
 router.post(
     "/orders",
