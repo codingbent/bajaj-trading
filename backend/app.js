@@ -6,6 +6,7 @@ connectToMongo();
 require("./models/Instrument");
 require("./models/Orders");
 require("./models/Portfolio");
+require("./models/User");
 
 const app=express();
 app.use(express.json());

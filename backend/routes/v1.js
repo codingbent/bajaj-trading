@@ -4,6 +4,7 @@ const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const Instrument = require("../models/Instrument");
 const Orders = require("../models/Orders");
+const User = require("../models/User");
 const Portfolio = require("../models/Portfolio");
 
 //Instrument
@@ -46,7 +47,7 @@ router.post(
 router.get("/fetchallinstruments", async (req, res) => {
     try {
         const instruments = await Instrument.find();
-        res.status(200).json(instruments);
+        res.status(201).json(instruments);
     } catch (error) {
         res.status(500).json(error);
     }
@@ -67,7 +68,7 @@ router.post(
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
             }
-            if (req.body.style === "LIMIT" && !req.body.price) {
+            if (req.body.style === "LIMIT" && req.body.price < 0) {
                 return res.status(400).json({
                     message: "Price is required for LIMIT orders",
                 });
@@ -85,7 +86,53 @@ router.post(
         }
     }
 );
+router.post(
+    "/createuser",
+    [
+        body("username"),
+        body("name"),
+        body("number"),
+        body("email"),
+        body("password"),
+        body("cpassword"),
+    ],
 
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+            const { username, name, number, email, password, cpassword } =
+                req.body;
+            const existinguser = await User.findOne({
+                $or: [
+                    { email: email },
+                    { number: number },
+                    { username: username },
+                ],
+            });
+            if (password != cpassword) {
+                return res
+                    .status(400)
+                    .json({ message: "password did not match" });
+            }
+            if (existinguser) {
+                return res.status(400).json({ message: "User already exists" });
+            }
+            const data = await User.create({
+                username: username,
+                name: name,
+                number: number,
+                email: email,
+                password: password,
+            });
+            return res.status(201).json(data);
+        } catch (error) {
+            res.status(500).json(error);
+        }
+    }
+);
 //Fetch order ID
 router.get("/orders/:orderId", async (req, res) => {
     try {
