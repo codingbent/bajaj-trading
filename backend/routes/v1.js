@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
+const bcrypt = require("bcrypt");
 const { body, validationResult } = require("express-validator");
 const Instrument = require("../models/Instrument");
 const Orders = require("../models/Orders");
@@ -86,53 +87,67 @@ router.post(
         }
     }
 );
+
 router.post(
     "/createuser",
     [
-        body("username"),
-        body("name"),
-        body("number"),
-        body("email"),
-        body("password"),
-        body("cpassword"),
+        body("username").notEmpty(),
+        body("name").notEmpty(),
+        body("number").isNumeric(),
+        body("email").isEmail(),
+        body("password").isLength({ min: 6 }),
+        body("cpassword").notEmpty(),
     ],
-
     async (req, res) => {
         try {
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
             }
-            const { username, name, number, email, password, cpassword } =
-                req.body;
-            const existinguser = await User.findOne({
-                $or: [
-                    { email: email },
-                    { number: number },
-                    { username: username },
-                ],
-            });
-            if (password != cpassword) {
-                return res
-                    .status(400)
-                    .json({ message: "password did not match" });
+
+            const { username, name, number, email, password, cpassword } = req.body;
+            if (password !== cpassword) {
+                return res.status(400).json({
+                    message: "Passwords do not match",
+                });
             }
-            if (existinguser) {
-                return res.status(400).json({ message: "User already exists" });
-            }
-            const data = await User.create({
-                username: username,
-                name: name,
-                number: number,
-                email: email,
-                password: password,
+
+            const existingUser = await User.findOne({
+                $or: [{ email }, { number }, { username }],
             });
-            return res.status(201).json(data);
+
+            if (existingUser) {
+                return res.status(400).json({
+                    message: "User already exists",
+                });
+            }
+            const saltRounds = 10;
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+            const user = await User.create({
+                username,
+                name,
+                number,
+                email,
+                password: hashedPassword,
+            });
+
+            res.status(201).json({
+                message: "User created successfully",
+                user: {
+                    id: user._id,
+                    username: user.username,
+                    name: user.name,
+                    email: user.email,
+                },
+            });
         } catch (error) {
-            res.status(500).json(error);
+            console.error(error);
+            res.status(500).json({ message: "Server Error" });
         }
     }
 );
+
 //Fetch order ID
 router.get("/orders/:orderId", async (req, res) => {
     try {
